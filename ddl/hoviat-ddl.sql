@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS country_division
 (
     code   INT NOT NULL UNIQUE,
     parent INT NOT NULL,
+    name NVARCHAR(50) NOT NULL,
 
     PRIMARY KEY (code),
     CONSTRAINT FOREIGN KEY CNT_DIV_SELF_FK_IDX (parent) REFERENCES country_division (code)
@@ -90,24 +91,34 @@ CREATE TABLE IF NOT EXISTS agent
     phone   VARCHAR(11)  NOT NULL UNIQUE,
     mobile  VARCHAR(11)  NOT NULL UNIQUE,
     grade   SMALLINT     NOT NULL,
-    cntr_fk BIGINT(11)   NOT NULL COMMENT 'contractor foreign key',
     div_fk  INT          NOT NULL COMMENT 'country division foreign key',
 
     PRIMARY KEY (n_code),
     CONSTRAINT FOREIGN KEY AGENT_CNT_DIV_FK_IDX (div_fk) REFERENCES country_division (code)
-        ON DELETE RESTRICT
-        ON UPDATE RESTRICT,
-
-    CONSTRAINT FOREIGN KEY AGENT_CONTRACTOR_FK_IDX (cntr_fk) REFERENCES contractor (n_code)
         ON DELETE RESTRICT
         ON UPDATE RESTRICT
 
 ) ENGINE = InnoDB;
 
 
+CREATE TABLE IF NOT EXISTS agent_contractor
+(
+    contractor BIGINT(11) NOT NULL COMMENT 'contractor foreign key',
+    agent      BIGINT(11) NOT NULL COMMENT 'agent foreign key',
+
+    PRIMARY KEY (contractor, agent),
+    CONSTRAINT FOREIGN KEY AGENT_CONTRACTOR_CONTRACTOR_FK_IDX (contractor) REFERENCES contractor (n_code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+    CONSTRAINT FOREIGN KEY AGENT_CONTRACTOR_AGENT_FK_IDX (agent) REFERENCES agent (n_code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT
+
+) ENGINE = InnoDB;
+
 CREATE TABLE IF NOT EXISTS tag_company
 (
-    id       INT AUTO_INCREMENT PRIMARY KEY,
+    id       INT          NOT NULL AUTO_INCREMENT,
     cmp_name NVARCHAR(50) NULL COMMENT 'company name',
     uid      BIGINT       NOT NULL UNIQUE COMMENT 'unique id',
     p_code   BIGINT(10)   NOT NULL COMMENT 'postal code',
@@ -119,7 +130,8 @@ CREATE TABLE IF NOT EXISTS tag_company
     p_rfid   BIT          NULL     DEFAULT FALSE COMMENT 'produce Electronic tag(RFID)?',
     p_mchip  BIT          NULL     DEFAULT FALSE COMMENT 'produce Microchip?',
     p_bol    BIT          NULL     DEFAULT FALSE COMMENT 'produce Boluses?',
-    active   BIT          NOT NULL DEFAULT FALSE
+    active   BIT          NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (id)
 ) ENGINE = InnoDB;
 
 CREATE TABLE IF NOT EXISTS rancher
@@ -201,10 +213,155 @@ CREATE TABLE IF NOT EXISTS sub_unit
 ) ENGINE = InnoDB;
 
 
+CREATE TABLE IF NOT EXISTS tag_request
+(
+    id       INT        NOT NULL,
+    cg_fk    SMALLINT   NOT NULL COMMENT 'central guild foreign key',
+    tc_id    INT        NOT NULL COMMENT 'tag company foreign key',
+    a_kind   SMALLINT   NOT NULL COMMENT 'animal kind',
+    tag_type SMALLINT   NOT NULL,
+    count    SMALLINT   NOT NULL,
+    status   SMALLINT   NOT NULL DEFAULT 0,
+    form_n   BIGINT(15) NULL UNIQUE COMMENT 'from national code',
+    to_n     BIGINT(15) NULL UNIQUE COMMENT 'to national code',
+
+    PRIMARY KEY (id),
+    CONSTRAINT FOREIGN KEY REQUEST_GUILD_FK_IDX (cg_fk) REFERENCES central_guild (code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+
+    CONSTRAINT FOREIGN KEY REQUEST_COMPANY_FK_IDX (tc_id) REFERENCES tag_company (id)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT
+) ENGINE = InnoDB;
+
+
+CREATE TABLE IF NOT EXISTS central_guild_last_tag_request
+(
+    id     INT        NOT NULL,
+    cg_fk  SMALLINT   NOT NULL COMMENT 'central guild foreign key',
+    a_kind SMALLINT   NOT NULL COMMENT 'animal kind',
+    form_n BIGINT(15) NULL UNIQUE COMMENT 'from national code',
+    to_n   BIGINT(15) NULL UNIQUE COMMENT 'to national code',
+
+    PRIMARY KEY (id),
+    CONSTRAINT FOREIGN KEY LAST_TAG_REQUEST_FK_IDX (id) REFERENCES tag_request (id)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+
+    CONSTRAINT FOREIGN KEY REQUEST_GUILD_FK_IDX (cg_fk) REFERENCES central_guild (code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+
+    CONSTRAINT FOREIGN KEY REQUEST_COMPANY_FK_IDX (id) REFERENCES tag_company (id)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT
+) ENGINE = InnoDB;
+
+
+CREATE TABLE IF NOT EXISTS tag
+(
+    code     BIGINT(15) NOT NULL UNIQUE COMMENT 'national code',
+    treq_fk  INT        NOT NULL COMMENT 'tag request foreign key',
+    pg_fk    INT        NOT NULL COMMENT 'province guild foreign key',
+    con_fk   BIGINT(11) NOT NULL COMMENT 'contractor foreign key',
+    agent_fk BIGINT(11) NOT NULL COMMENT 'agent foreign key',
+
+    PRIMARY KEY (code),
+    CONSTRAINT FOREIGN KEY TAG_TAG_REQUEST_FK_IDX (treq_fk) REFERENCES tag_request (id)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+    CONSTRAINT FOREIGN KEY TAG_PROVINCE_GUILD_FK_IDX (pg_fk) REFERENCES province_guild (code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+    CONSTRAINT FOREIGN KEY TAG_CONTRACTOR_FK_IDX (con_fk) REFERENCES contractor (n_code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+    CONSTRAINT FOREIGN KEY TAG_AGENT_FK_IDX (agent_fk) REFERENCES agent (n_code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT
+
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS tag_archive
+(
+    code     BIGINT(15) NOT NULL UNIQUE COMMENT 'national code',
+    treq_fk  INT        NOT NULL COMMENT 'tag request foreign key',
+    pg_fk    INT        NOT NULL COMMENT 'province guild foreign key',
+    con_fk   BIGINT(11) NOT NULL COMMENT 'contractor foreign key',
+    agent_fk BIGINT(11) NOT NULL COMMENT 'agent foreign key',
+
+    PRIMARY KEY (code),
+    CONSTRAINT FOREIGN KEY TAG_TAG_REQUEST_FK_IDX (treq_fk) REFERENCES tag_request (id)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+    CONSTRAINT FOREIGN KEY TAG_PROVINCE_GUILD_FK_IDX (pg_fk) REFERENCES province_guild (code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+    CONSTRAINT FOREIGN KEY TAG_CONTRACTOR_FK_IDX (con_fk) REFERENCES contractor (n_code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+    CONSTRAINT FOREIGN KEY TAG_AGENT_FK_IDX (agent_fk) REFERENCES agent (n_code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT
+
+) ENGINE = InnoDB;
+
+
+CREATE TABLE IF NOT EXISTS identity
+(
+    id       BIGINT     NOT NULL AUTO_INCREMENT,
+    ta_fk    BIGINT(15) NOT NULL UNIQUE COMMENT 'tag archive foreign key',
+    a_kind   SMALLINT   NOT NULL COMMENT 'animal kind',
+    imported BIT        NOT NULL DEFAULT FALSE,
+    sex      SMALLINT   NOT NULL,
+    b_dt     DATE       NOT NULL COMMENT 'birth date',
+    su_fk    INT        NOT NULL COMMENT 'sub_unit foreign key',
+    ag_fk    BIGINT(11) NOT NULL UNIQUE COMMENT 'agent foreign key',
+    cr_dt    DATE       NOT NULL COMMENT 'create date',
+
+    PRIMARY KEY (id),
+    CONSTRAINT FOREIGN KEY IDENTITY_SUB_UNIT_FK_IDX (su_fk) REFERENCES sub_unit (id)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+
+    CONSTRAINT FOREIGN KEY IDENTITY_TAG_ARCHIVE_FK_IDX (ta_fk) REFERENCES tag_archive (code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT,
+
+    CONSTRAINT FOREIGN KEY IDENTITY_AGENT_FK_IDX (ag_fk) REFERENCES agent (n_code)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT
+
+
+) ENGINE = InnoDB;
+
+
+CREATE TABLE IF NOT EXISTS identity_status
+(
+    id     BIGINT   NOT NULL UNIQUE COMMENT 'identity foreign key',
+    status smallint NOT NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT FOREIGN KEY STATUS_IDENTITY_FK_IDX (id) REFERENCES identity (id)
+        ON DELETE RESTRICT
+        ON UPDATE RESTRICT
+
+
+) ENGINE = InnoDB;
+
+
 
 -- 3. dropping tables scripts
+DROP TABLE IF EXISTS identity_status;
+DROP TABLE IF EXISTS identity;
+DROP TABLE IF EXISTS tag_archive;
+DROP TABLE IF EXISTS tag;
+DROP TABLE IF EXISTS central_guild_last_tag_request;
+DROP TABLE IF EXISTS tag_request;
 DROP TABLE IF EXISTS sub_unit;
 DROP TABLE IF EXISTS sub_unit_activity;
+DROP TABLE IF EXISTS agent_contractor;
 DROP TABLE IF EXISTS agent;
 DROP TABLE IF EXISTS herd;
 DROP TABLE IF EXISTS rancher;
