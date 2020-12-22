@@ -7,7 +7,7 @@ use hoviat;
 CREATE TABLE IF NOT EXISTS country_division
 (
     code   INT NOT NULL UNIQUE,
-    parent INT NOT NULL,
+    parent INT NULL,
     name NVARCHAR(50) NOT NULL,
 
     PRIMARY KEY (code),
